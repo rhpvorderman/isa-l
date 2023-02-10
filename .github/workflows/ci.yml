@@ -1,0 +1,42 @@
+name: Continous integration
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+    tags:
+      - "*"
+
+jobs:
+  test-compile:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+    steps:
+      - uses: actions/checkout@v2.3.4
+      - name: Install build dependencies (Linux)  # Yasm in pypa/manylinux images.
+        run: sudo apt install nasm
+        if: runner.os == 'Linux'
+      - name: Install build dependencies (Macos)
+        # Install yasm because nasm does not work when building wheels.
+        # Probably because of nasm-filter.sh not filtering all flags that can not be used.
+        run: brew install nasm automake autoconf
+        if: runner.os == 'macOS'
+      - name: Set MSVC developer prompt
+        uses: ilammy/msvc-dev-cmd@v1.6.0
+        if: runner.os == 'Windows'
+      - name: Install nasm (Windows)
+        uses: ilammy/setup-nasm@v1.2.0
+        if: runner.os == 'Windows'
+      - name: Compile (unix)
+        if: runner.os != 'Windows'
+        run: |
+          ./autogen.sh
+          ./configure
+          make -j
+      - name: Compile (Windows)
+        run: |
+          nmake -f Makefile.nmake
+        if: runner.os == 'Windows'
